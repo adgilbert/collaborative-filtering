@@ -17,10 +17,10 @@ def link_for_metro(user_df, business_df, review_df):
     linked_review = pd.merge(review_df[['user_id','business_id','date']],
                              business_df[['business_id','metro_area',
                                           'latitude', 'longitude']],
-                             on='business_id')
+                             on='business_id', how='inner')
     return pd.merge(linked_review,
                     user_df[['user_id', 'review_count','yelping_since']],
-                    on='user_id', how='right')
+                    on='user_id', how='inner')
 
 
 def add_metro_area(df, K=12):
@@ -48,7 +48,7 @@ def calc_perc_metro(df):
     percent_in_metro = percent_in_metro.rename(columns={
         'review_count':'review_metro_percent'})
     #percent_in_metro now has three columns: UID, metro_area, review_percent
-    return pd.merge(df, percent_in_metro, on=['user_id','metro_area'], how='left')
+    return pd.merge(df, percent_in_metro, on=['user_id','metro_area'], how='inner')
     # df now has one additional column: 'review_metro_percent'
 
 
@@ -75,7 +75,7 @@ def calc_num_weeks_metro(df):
     weeks_in_metro = weeks_in_metro.reset_index().rename(columns={
         'week-year':'weeks_in_metro'})
 
-    df = pd.merge(df, weeks_in_metro, on=['user_id','metro_area'], how='left')
+    df = pd.merge(df, weeks_in_metro, on=['user_id','metro_area'], how='inner')
     df = weeks_on_yelp(df)  # add 'days_on_yelp' column
     # print('weeks_in_metro' in df.keys())
     df['weeks_in_metro'] = df['weeks_in_metro'] / df['weeks_on_yelp']
@@ -92,17 +92,33 @@ def weeks_on_yelp(df):
     # timedelta
     # object -> int
 
+# def num_metros_visited(df):
+#     df['num_metros_visited'] = df['metro_area']
+#     dnew['num_metros_visited'] = df.groupby('user_id')['num_metros_visited'].nunique()
+#     dnew.reset_index()
+    # return dnew
+
 def num_metros_visited(df):
-    df['num_metros_visited'] = df['metro_area']
-    df.groupby('user_id')['num_metros_visited'].nunique()
-    return df.reset_index()
+    num_visited = df.groupby('user_id')['metro_area'].nunique().reset_index()
+    num_visited = num_visited.rename(columns={
+                                     'metro_area':'num_metros_visited'})
+    print('Grouped. Now merge')
+    return df.merge(num_visited, on='user_id')
+
 
 def reviews_per_week_per_metro(df):
     # count up entries having same user ID and metro_area combo
     counted = df.groupby(['user_id', 'metro_area'])['review_count'].count()
-
-    df['reviews_per_wk_per_metro'] = counted  / (df['weeks_in_metro']
+    print(counted.shape)
+    counted = counted.reset_index()
+    print(counted.shape, df.shape)
+    reviews_per_wk_per_metro = counted  / (df['weeks_in_metro']
                                      * df['weeks_on_yelp'])
+    reviews_per_wk_per_metro.rename(columns={'review_count': 'reviews_per_wk_per_metro'}).reset_index()
+    reviews_per_wk_per_metro
+    print(reviews_per_wk_per_metro.keys())
+    print('Grouped. ')
+    return df.merge(reviews_per_wk_per_metro, on=['user_id','metro_area'])
 
 
 def define_user_features(user_df, feature_df, num_metro_areas):
@@ -110,19 +126,24 @@ def define_user_features(user_df, feature_df, num_metro_areas):
         Given a DataFrame of users and a dataframe of features this function creates a feature vector for the user at each metro area
     """
     user_features = user_df[['user_id']].copy()
-    user_features = pd.merge(user_features, feature_df[['user_id', 'num_metros_visited', 'weeks_on_yelp']].copy(), on='user_id', how='left')
+    user_features = pd.merge(user_features, feature_df[['user_id', 'num_metros_visited', 'weeks_on_yelp']].copy(), on='user_id', how='inner')
 
 
     for m in range(num_metro_areas):
         # Get percentage of reviews in each metro
         temp_perc = feature_df.query('metro_area == {}'.format(m)).groupby(['user_id'])['review_metro_percent'].first().reset_index()
-        user_features = pd.merge(user_features, temp_perc, on='user_id', how='left')
+        user_features = pd.merge(user_features, temp_perc, on='user_id', how='inner')
         user_features = user_features.rename(columns={'review_metro_percent':'m{}_percent'.format(m)})
         
         # Get review weeks in each metro
         temp_weeks = feature_df.query('metro_area == {}'.format(m)).groupby(['user_id'])['weeks_in_metro'].first().reset_index()
-        user_features = pd.merge(user_features, temp_weeks, on='user_id', how='left')
+        user_features = pd.merge(user_features, temp_weeks, on='user_id', how='inner')
         user_features = user_features.rename(columns={'weeks_in_metro':'m{}_weeks'.format(m)})
     return user_features
+
+
+
+
+
 
 
