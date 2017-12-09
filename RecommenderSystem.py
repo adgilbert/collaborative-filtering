@@ -20,11 +20,9 @@ import plot_and_split as pas
 import datetime
 import scipy
 from scipy.sparse import csc_matrix
-# get_ipython().magic(u'load_ext autoreload')
-# get_ipython().magic(u'autoreload 2')
 
 
-# In[4]:
+# In[155]:
 
 cur_dir = '~/Desktop/dataset/'
 dataset_dir = cur_dir + 'head'
@@ -32,14 +30,14 @@ ext = '_head'
 CITYNAME = 'LasVegas'
 
 
-# In[5]:
+# In[156]:
 
 users = pd.read_csv(dataset_dir + '/user' + ext + '.csv')
 reviews = pd.read_csv(dataset_dir + '/review' + ext + '.csv')
 businesses = pd.read_csv(dataset_dir + '/business' + ext + '.csv')
 
 
-# In[6]:
+# In[157]:
 
 major_businesses, state_num = pas.eliminate_minor_states(businesses)
 # Manually define boundaries because that's the easiest way to do this
@@ -62,7 +60,7 @@ for state in state_num:
 major_businesses.loc[major_businesses.state=='SC', 'state'] = 'NC'
 
 
-# In[7]:
+# In[158]:
 
 states = set(major_businesses['state'])
 print(states)
@@ -77,12 +75,12 @@ major_businesses.dropna(subset=['latitude', 'longitude'], inplace=True)
 clusters = pas.cluster_cities(major_businesses, k=11, iter=500, init=init)
 
 
-# In[8]:
+# In[159]:
 
 major_businesses = major_businesses.assign(metro_area=pd.Series(clusters[1]).values)
 
 
-# In[20]:
+# In[160]:
 
 # b = major_businesses.keys()
 # nonA = [ba for ba in b if 'Attributes' not in ba and 'attributes' not in ba and 'hours' not in ba]
@@ -91,14 +89,18 @@ major_businesses = major_businesses.assign(metro_area=pd.Series(clusters[1]).val
 # major_businesses2 = major_businesses2.rename(columns={'review_count':'biz_review_count'})
 
 
-# In[22]:
+# In[161]:
 
 join_date = pd.to_datetime(users['yelping_since']).dt.date
 now_date = datetime.date(2017, 12, 1)
 users['weeks_on_yelp'] = (now_date - join_date).dt.days / 7
+print(users.shape)
+# Eliminate users with less than 20 reviews
+users = users[users.review_count >= 20]
+print(users.shape)
 
 
-# In[42]:
+# In[162]:
 
 connections = gmf.link_for_metro(users, major_businesses, reviews)
 # This gives us percentage of reviews in each metro area
@@ -106,13 +108,15 @@ perc_metro = gmf.calc_perc_metro(connections)
 # print(perc_metro)
 
 
-# In[43]:
+
+
+# In[163]:
 
 num_visited = gmf.num_metros_visited(perc_metro)
 weeks_metro = gmf.calc_num_weeks_metro(num_visited)
 
 
-# In[44]:
+# In[164]:
 
 # review_metro = gmf.reviews_per_week_per_metro(weeks_metro)
 user_features = gmf.define_user_features(users, weeks_metro, clusters[0].shape[0])
@@ -123,7 +127,7 @@ user_features = user_features.groupby('user_id').max()
 user_features = user_features.reset_index()
 
 
-# In[45]:
+# In[165]:
 
 user_f = np.array(user_features[['m0_percent', # removed 'num_metros_visited', 'weeks_on_yelp', 
        'm0_weeks', 'm1_percent', 'm1_weeks', 'm2_percent', 'm2_weeks',
@@ -144,9 +148,10 @@ user_clustering = cluster.vq.kmeans2(user_f, initialization, iter=600, minit='ma
 user_res = user_features.copy()
 user_res['group'] = user_clustering[1]
 print(np.max(user_clustering[0], axis=1))
+print(user_res.keys())
 
 
-# In[46]:
+# In[166]:
 
 user_res['cluster_dist'] = np.zeros(user_res.shape[0])
 cluster_keys = [k for k in user_res.keys() if k not in ['user_id', 'group', 'cluster_dist', 'num_metros_visited', 'weeks_on_yelp']]
@@ -156,8 +161,11 @@ for m in range(1, clusters[0].shape[0]):
     user_res.loc[user_res.group == m, 'cluster_dist'] = np.linalg.norm(user_res.loc[user_res.group == m, cluster_keys] - 
                                                                 user_clustering[0][m], axis=1)
 
+    
+# Cut out users with less than 20 reviews
 
-# In[121]:
+
+# In[167]:
 
 city_centers = dict(
     Toronto=(43.66, -79.58),
@@ -206,7 +214,7 @@ for i in range(clusters[0].shape[0]):
 # print(cities)
 
 
-# In[113]:
+# In[168]:
 
 
 city_centers = """
@@ -226,7 +234,7 @@ city_centers = """
 # print(city_centers)
 
 
-# In[132]:
+# In[169]:
 
 def get_city_array(city_index, connections, user_res, businesses, savename=None):
     local_users = user_res[user_res['group'] == city_index]
