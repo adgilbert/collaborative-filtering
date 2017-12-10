@@ -5,6 +5,7 @@ __pycache__/
 
 # dataset
 yelp_dataset
+variables.pck
 *.csv
 
 # C extensions
