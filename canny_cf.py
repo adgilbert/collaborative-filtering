@@ -45,6 +45,7 @@ def E_step(Lam, psi, Yj, item_idx, k, n, m):
 def M_step(Ycol, Lam, psi, k, n, m):
 	accum_A = sp.csc_matrix((k*n, k*n))
 	accum_B = sp.csc_matrix((n,k))
+	x = np.zeros((k, m))
 	psi_p = 0.0
 	for j in range(0, m):
 		item_idx = Ycol.indices[Ycol.indptr[j]:Ycol.indptr[j + 1]]  # items user has rated
@@ -54,7 +55,7 @@ def M_step(Ycol, Lam, psi, k, n, m):
 		Dj = sp.diags(idx_vec)
 		assert(Dj.shape == (n,n))
 
-		Mj, xj = E_step(Lam, psi, Ycol[:, j], item_idx, k, n, m)
+		Mj, x[:, j] = E_step(Lam, psi, Ycol[:, j], item_idx, k, n, m)
 		Aj = (np.outer(xj, xj) + psi * Mj) / item_idx.shape[0]
 		accum_A +=  sp.kron(Dj, Aj)
 		Bj = Ycol[:, j].dot(xj.T) / item_idx.shape[0]
@@ -71,6 +72,27 @@ def M_step(Ycol, Lam, psi, k, n, m):
 	# psi_p = psi_p.todense()
 
 	return Lam_p, psi_p
+
+
+def train(Ycol, k):
+	n, m = Ycol.shape
+
+	print("n={}\nm={}\nk={}".format(n, m, k))
+
+	Lam, psi = initialize(n, k)
+	# print(Lam.shape)
+	# print(psi.shape)
+
+	print('Starting Iterations\n========================')
+	iters = 30
+	lam_diff = np.zeros(iters)
+	psi_diff = np.zeros(iters)
+	for i in range(iters):
+	    new_lam, new_psi = M_step(Ycol, Lam, psi, k, n, m)
+	    lam_diff[i], psi_diff[i] = np.linalg.norm(Lam-new_lam), np.linalg.norm(psi-new_psi)
+	    print('iter: {} \tlam_diff:  {:.4f}\tpsi_diff:  {:.4f}'.format(i, lam_diff[i], psi_diff[i]))
+	    Lam, psi, X, Y = np.array(new_lam), np.array(new_psi)
+	    
 
 
 # if __name__ == '__main__':
