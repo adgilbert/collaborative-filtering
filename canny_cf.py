@@ -38,8 +38,8 @@ def E_step(Lam, psi, Yj, item_idx, k, n, m):
 
 
 def M_step(Ycol, Lam, psi, k, n, m):
-	accum_A = sp.csc_matrix((k*n, k*n))
-	accum_B = sp.csc_matrix((n,k))
+	accum_A = [np.zeros(k,k) for i in range(n)] 
+	accum_B = np.zeros((n,k)) #sp.csc_matrix((n,k))
 	x = np.zeros((k, m))
 	psi_p = 0.0
 	for j in range(0, m):
@@ -49,17 +49,21 @@ def M_step(Ycol, Lam, psi, k, n, m):
 		idx_vec[item_idx] = 1
 		Dj = sp.diags(idx_vec)
 		assert(Dj.shape == (n,n))
-
+        
 		Mj, x[:, j] = E_step(Lam, psi, Ycol[:, j], item_idx, k, n, m)
 		Aj = (np.outer(x[:, j], x[:, j]) + psi * Mj) / item_idx.shape[0]
-		accum_A +=  sp.kron(Dj, Aj)
+        for biz in item_idx:
+            accum_A[biz] += Aj
 		Bj = Ycol[:, j].dot(x[:, j].reshape(1, -1)) / item_idx.shape[0] 
 		accum_B += Bj
 		psi_p += (Ycol[:, j].T.dot(Ycol[:, j])).todense() / item_idx.shape[0]
 
 	# print(accum_A.__class__)
+    Lam_p = np.zeros((n,k))
+    for i, A in enumerate(accum_A):
+        Lam_p[i,:] = np.linalg.inv(A).dot(accum_B[i,:].T).T
 
-	Lam_p = spLinAlg.inv(accum_A).dot(accum_B.reshape((-1, 1))).reshape( (n, k))
+	# Lam_p = spLinAlg.inv(accum_A).dot(accum_B.reshape((-1, 1))).reshape( (n, k))
 
 	# print("psi = {}".format(psi_p))
 	psi_p -= np.trace(Lam_p.T.dot(accum_B))
