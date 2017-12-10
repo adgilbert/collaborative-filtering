@@ -23,10 +23,9 @@ from scipy.sparse import csc_matrix
 
 
 # In[155]:
-
-cur_dir = '~/Desktop/dataset/'
-dataset_dir = cur_dir + 'head'
-ext = '_head'
+cur_dir = os.getcwd()
+dataset_dir = cur_dir
+ext = ''
 CITYNAME = 'LasVegas'
 
 
@@ -235,7 +234,6 @@ city_centers = """
 
 
 # In[169]:
-
 def get_city_array(city_index, connections, user_res, businesses, savename=None):
     local_users = user_res[user_res['group'] == city_index]
     local_bizes = businesses[businesses['metro_area'] == city_index]
@@ -247,8 +245,13 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     local_data = local_connections['stars'].tolist()
     local_col = local_connections.user_id.astype('category', categories=local_users).cat.codes
     local_row = local_connections.business_id.astype('category', categories=local_businesses).cat.codes
+    assert(local_col[local_col<0].shape[0] == 0)
+    assert(local_row[local_row<0].shape[0] == 0)
     local_sparse_matrix = csc_matrix((local_data, (local_row, local_col)), 
                                      shape=(len(local_businesses), len(local_users)))
+    
+    if savename is not None:
+        pickle.dump(local_sparse_matrix, open('data/{}_local.pck'.format(savename), 'wb'))
     
     # For tourist, get new users but same businesses
     tourist_users = user_res[user_res['group'] != city_index]
@@ -259,6 +262,8 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     tourist_data = tourist_connections['stars'].tolist()
     tourist_col = tourist_connections.user_id.astype('category', categories=tourist_users).cat.codes
     tourist_row = tourist_connections.business_id.astype('category', categories=local_businesses).cat.codes
+    assert(tourist_row[tourist_row<0].shape[0] == 0)
+    assert(tourist_col[tourist_col<0].shape[0] == 0)
     tourist_sparse_matrix = csc_matrix((tourist_data, (tourist_row, tourist_col)), 
                                        shape=(len(local_businesses), len(tourist_users)))
     
@@ -266,12 +271,20 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     print(tourist_sparse_matrix.shape)
     if savename is not None:
         pickle.dump(local_sparse_matrix, open('data/{}_local.pck'.format(savename), 'wb'))
-        pickle.dump(tourist_sparse_matrix, open('data/{}_tourist.pck'.format(savename), 'wb'))
     return local_sparse_matrix,  tourist_sparse_matrix
 
-L, T = get_city_array(cities[CITYNAME], connections, user_res, major_businesses, CITYNAME)
-    
-    
+
+variables = dict(
+    cities=cities,
+    connections=connections, 
+    user_res=user_res,
+    major_businesses=major_businesses,
+    CITYNAME=CITYNAME
+)
+
+pickle.dump(variables, open('data/variables.pck', 'wb'))
+_, _ = get_city_array(cities[CITYNAME], connections, user_res, major_businesses, CITYNAME)
+
     
     
     
