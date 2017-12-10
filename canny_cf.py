@@ -95,9 +95,25 @@ def train(Ycol, k, iters):
 	return lam_diff, psi_diff, x, Lam
 
 
-def test(Ycol, x, Lam):
-	Ytest = Lam.dot(x)
-	return Ycol-Ytest
+def test(Ytr, X, Lam):
+    """
+    Determine the mean absolute error for the non-zero entries of the training data
+    Ytr is (n, m) representing ratings by m users of n restaurants 
+        -- to accomodate large data sets, Ytr is assumed to be sparse
+    X is (k,m) representing k canonical preferences of m users
+    Lam is (n,k) representing factor loading of k canonical preferences for n businesses
+    """
+    assert (Ytr.shape[0] == Lam.shape[0])
+    assert (Ytr.shape[1] == X.shape[1])
+    assert (Lam.shape[1] == X.shape[0])
+
+    #find non-zero ratings in training data
+	row, col, data = sp.find(Ytr)
+    absolute_err_sum = 0.0
+    for i, ytr in enumerate(data):
+        ypred = np.inner(Lam[row[i],:], X[:,col[i]])
+        absolute_err_sum += abs(ypred - ytr)
+	return (absolute_err_sum / len(data))
 
 
 def split_Y(Ycol, proportion):
