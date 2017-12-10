@@ -37,7 +37,7 @@ def E_step(Lam, psi, Yj, item_idx, k, n, m):
 		raise(AssertionError('x_j shape = {}. k = {}'.format(x_j.shape, k)))
 	
 
-	return M_j, x_j
+	return M_j, x_j.reshape(-1)
 
 
 
@@ -56,9 +56,9 @@ def M_step(Ycol, Lam, psi, k, n, m):
 		assert(Dj.shape == (n,n))
 
 		Mj, x[:, j] = E_step(Lam, psi, Ycol[:, j], item_idx, k, n, m)
-		Aj = (np.outer(xj, xj) + psi * Mj) / item_idx.shape[0]
+		Aj = (np.outer(x[:, j], x[:, j]) + psi * Mj) / item_idx.shape[0]
 		accum_A +=  sp.kron(Dj, Aj)
-		Bj = Ycol[:, j].dot(xj.T) / item_idx.shape[0]
+		Bj = Ycol[:, j].dot(x[:, j].reshape(1, -1)) / item_idx.shape[0]
 		accum_B += Bj
 		psi_p += (Ycol[:, j].T.dot(Ycol[:, j])).todense()
 
@@ -71,10 +71,10 @@ def M_step(Ycol, Lam, psi, k, n, m):
 	psi_p /= m #normalize
 	# psi_p = psi_p.todense()
 
-	return Lam_p, psi_p
+	return Lam_p, psi_p, x
 
 
-def train(Ycol, k):
+def train(Ycol, k, iters):
 	n, m = Ycol.shape
 
 	print("n={}\nm={}\nk={}".format(n, m, k))
@@ -84,43 +84,80 @@ def train(Ycol, k):
 	# print(psi.shape)
 
 	print('Starting Iterations\n========================')
-	iters = 30
 	lam_diff = np.zeros(iters)
 	psi_diff = np.zeros(iters)
 	for i in range(iters):
-	    new_lam, new_psi = M_step(Ycol, Lam, psi, k, n, m)
-	    lam_diff[i], psi_diff[i] = np.linalg.norm(Lam-new_lam), np.linalg.norm(psi-new_psi)
-	    print('iter: {} \tlam_diff:  {:.4f}\tpsi_diff:  {:.4f}'.format(i, lam_diff[i], psi_diff[i]))
-	    Lam, psi, X, Y = np.array(new_lam), np.array(new_psi)
-	    
+		new_lam, new_psi, x = M_step(Ycol, Lam, psi, k, n, m)
+		lam_diff[i], psi_diff[i] = np.linalg.norm(Lam-new_lam), np.linalg.norm(psi-new_psi)
+		print('iter: {} \tlam_diff:  {:.4f}\tpsi_diff:  {:.4f}'.format(i, lam_diff[i], psi_diff[i]))
+		Lam, psi = np.array(new_lam), np.array(new_psi)
+
+	return lam_diff, psi_diff, x, Lam
 
 
-# if __name__ == '__main__':
-# 	k = 10 # number of latent factors
-# 	FNAME = 'data/LasVegas_local.pck'
-
-# 	with open(FNAME, 'rb') as pickle_file:
-# 		dfY = pickle.load(pickle_file)
-
-# 	# Y is a pandas dataframe array with d0 = users and d1 = businesses
-# 	# columns are axis 0 in df
-# 	# Ycol = sp.csc_matrix(dfY.v)
-# 	Ycol = dfY
-# 	n, m = Ycol.shape
+def test(Ycol, x, Lam):
+	Ytest = Lam.dot(x)
+	return Ycol-Ytest
 
 
-# 	Lam, psi = initialize()
+def split_Y(Ycol, proportion):
+	"""
+	splits the dataset Ycol into training and testing datasets of the given proportion.
+	Because this is EM we take the bottom right corner of Y as the testing set
+	"""
+	n, m = Ycol.shape
+	test_n, test_m = int(n*proportion), int(m*proportion)
 
-# 	iters = 0
-# 	while True:
-# 		new_lam, new_psi = M_step(Ycol, Lam, psi)
-# 		lam_diff, psi_diff = np.linalg.norm(Lam-new_lam), np.linalg.norm(psi-new_psi)
-# 		print('iter: {}\tlam_diff:{}\tpsi_diff{}'.format(iters, lam_diff, psi_diff))
-# 		iters += 1
-# 		if iters > 10:
-# 			break
+	# first get Train
+	row, col, data = sp.find(Ycol)
+	all_rows = list(np.arange(n-test_n))
+	all_cols = list(np.arange(m-test_m))
+	save_inds = [(r, c, d) for (r, c, d) in zip(row, col, data) if r < n-test_n or c < m - test_m]
+	save_inds = np.array(save_inds)
+	train_row, train_col, train_data = save_inds[:, 0], save_inds[:, 1], save_inds[:, 2]
+	Ytrain = sp.csc_matrix((train_data, (train_row, train_col)) )
+	# Now get rid of columns or rows that are empty
+	print('Ytrain before removing empty: {}'.format(Ytrain.shape))
+	train_row_ind, train_col_ind = np.unique(Ytrain.nonzero()[0]), np.unique(Ytrain.nonzero()[1])
+	Ytrain = Ytrain[train_row_ind,:]
+	Ytrain = Ytrain[:, train_col_ind]
+	print('Ytrain after removing empty: {}'.format(Ytrain.shape))
+
+	# Now get test: 
+	#have to only get rows that have actually been trained on first of all. 
+	Ytest = Ycol[train_row_ind, :]
+	Ytest = Ytest[:, train_col_ind]
+	# now take the last 20% (which will no longer actually be 20%)
+	Ytest = Ytest[n-test_n:, m-test_m:]
+	# Again remove empty columns or rows
+	print('Ytest before removing empty: {}'.format(Ytest.shape))
+	test_row_ind, test_col_ind = np.unique(Ytest.nonzero()[0]), np.unique(Ytest.nonzero()[1])
+	Ytest = Ytest[test_row_ind,:]
+	Ytest = Ytest[:, test_col_ind]
+	print('Ytest after removing empty: {}'.format(Ytest.shape))
+
+	return Ytest, Ytrain, test_row_ind, test_col_ind
 
 
 
+def split_others(Ycol, x, Lam, proportion, test_row_ind, test_col_ind):
+	"""
+	split the resulting x and lambda into the just the piece for the test set using the same methodology as above
+	"""
+	n, m = Ycol.shape
+	test_n, test_m = int(n*proportion), int(m*proportion)
+
+	# Perform the exact same iterations as the test set
+	# x_test = x[:, train_col_ind]
+	x_test = x[:, m-test_m:]
+	x_test = x_test[:, test_col_ind]
+	print('x_test shape: {}'.format(x_test.shape))
+
+	# Lam_test = Lam[train_row_ind, :]
+	Lam_test = Lam[n-test_n:, :]
+	Lam_test = Lam_test[test_row_ind, :]
+	print('Lam_test shape: {}'.format(Lam_test.shape))
+
+	return x_test, Lam_test
 
 
