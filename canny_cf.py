@@ -22,15 +22,10 @@ def E_step(Lam, psi, Yj, item_idx, k, n, m):
 		assert(Lam.shape == (n, k))
 	except AssertionError:
 		raise(AssertionError('Lam_j shape = {}. Lam shape = {}. n, k = {}, {}'.format(Lam_j.shape, Lam.shape, n, k)))
-	M_j = psi * np.eye(k, k)  + np.dot(Lam.T, Lam_j)
+	M_j = np.linalg.inv(psi * np.eye(k, k)  + np.dot(Lam.T, Lam_j)) #Lam_j equivalent to D_j * Lam
 	assert (M_j.shape == (k, k))
 	# print(Yj.shape)
-	# x_j = M_j.dot(Lam_j.T).dot(Yj) #kx1
-	temp = M_j.dot(Lam_j.T)
-	# yjtemp = Yj.reshape(-1)
-	# print(temp.shape)
-	x_j = sp.csc_matrix.dot(temp, Yj)
-	# print(temp2.shape)
+	x_j = sp.csc_matrix.dot(M_j.dot(Lam_j.T), Yj)
 	try:
 		assert( x_j.shape == (k, 1) )
 	except AssertionError:
@@ -58,9 +53,9 @@ def M_step(Ycol, Lam, psi, k, n, m):
 		Mj, x[:, j] = E_step(Lam, psi, Ycol[:, j], item_idx, k, n, m)
 		Aj = (np.outer(x[:, j], x[:, j]) + psi * Mj) / item_idx.shape[0]
 		accum_A +=  sp.kron(Dj, Aj)
-		Bj = Ycol[:, j].dot(x[:, j].reshape(1, -1)) / item_idx.shape[0]
+		Bj = Ycol[:, j].dot(x[:, j].reshape(1, -1)) / item_idx.shape[0] 
 		accum_B += Bj
-		psi_p += (Ycol[:, j].T.dot(Ycol[:, j])).todense()
+		psi_p += (Ycol[:, j].T.dot(Ycol[:, j])).todense() / item_idx.shape[0]
 
 	# print(accum_A.__class__)
 
@@ -126,8 +121,6 @@ def split_Y(Ycol, proportion):
 
 	# first get Train
 	row, col, data = sp.find(Ycol)
-	all_rows = list(np.arange(n-test_n))
-	all_cols = list(np.arange(m-test_m))
 	save_inds = [(r, c, d) for (r, c, d) in zip(row, col, data) if r < n-test_n or c < m - test_m]
 	save_inds = np.array(save_inds)
 	train_row, train_col, train_data = save_inds[:, 0], save_inds[:, 1], save_inds[:, 2]
@@ -141,8 +134,8 @@ def split_Y(Ycol, proportion):
 
 	# Now get test: 
 	#have to only get rows that have actually been trained on first of all. 
-	Ytest = Ycol[train_row_ind, :]
-	Ytest = Ytest[:, train_col_ind]
+    Ytest = Ytest[:, train_col_ind] #do column slicing first for increased efficiency
+    Ytest = Ytest[train_row_ind, :]
 	# now take the last 20% (which will no longer actually be 20%)
 	Ytest = Ytest[n-test_n:, m-test_m:]
 	# Again remove empty columns or rows
