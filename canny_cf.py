@@ -25,6 +25,9 @@ def E_step(Lam, psi, Yj, item_idx, k, n, m):
     M_j = np.linalg.inv(psi * np.eye(k, k)  + np.dot(Lam.T, Lam_j)) #Lam_j equivalent to D_j * Lam
     assert (M_j.shape == (k, k))
     # print(Yj.shape)
+    #print(M_j.shape)
+    #print(Lam_j.shape)
+    #print(Yj.shape)
     x_j = sp.csc_matrix.dot(M_j.dot(Lam_j.T), Yj)
     try:
         assert( x_j.shape == (k, 1) )
@@ -87,7 +90,7 @@ def train(Ytotal, Ytrain, k, iters, Ytest, PROPORTION, test_row_ind, test_col_in
     original_shape = the shape of the training array before appending extra information. This is used in the case of 'combined' data when the 
         tourist data and local data are combined, but the test set only comes from one. Then 
     """
-    n, m = Ytotal.shape
+    n, m = Ytrain.shape
 
     print("n={}\nm={}\nk={}".format(n, m, k))
 
@@ -141,7 +144,7 @@ def test(Ytr, X, Lam):
     absolute_err_sum = 0.0
     for i, ytr in enumerate(data):
         ypred = np.inner(Lam[row[i],:], X[:,col[i]])
-        ypred = max(1, min(ypred, 5)) #limit prediction to review range
+        ypred = max(0.5, min(ypred, 5)) #limit prediction to review range
         absolute_err_sum += abs(ypred - ytr)
     return (absolute_err_sum / len(data))
 
