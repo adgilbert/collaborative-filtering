@@ -111,6 +111,7 @@ def test(Ytr, X, Lam):
     absolute_err_sum = 0.0
     for i, ytr in enumerate(data):
         ypred = np.inner(Lam[row[i],:], X[:,col[i]])
+        ypred = max(1, min(ypred, 5)) #limit prediction to review range
         absolute_err_sum += abs(ypred - ytr)
     return (absolute_err_sum / len(data))
 
