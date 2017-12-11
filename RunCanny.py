@@ -28,12 +28,27 @@ lam_diff, psi_diff, x, Lam = train(Ytrain, k, ITERS)
 # Get the correct rows and columns of Lambda and x
 x_test, Lam_test = split_others(Ycol, x, Lam, PROPORTION, test_row_ind, test_col_ind)
 
+
+results = dict(
+        x=x,
+        Ytest=Ytest,
+        Ytrain=Ytrain,
+        Lam=Lam,
+        x_test=x_test,
+        Lam_test=Lam_test,
+        lam_diff=lam_diff,
+        psi_diff=psi_diff )
+pickle.dump(results, open('data/training_results.pck', 'wb'))
+
+
 # Test the result
 res = test(Ytest, x_test, Lam_test)
-pickle.dump(res, open('data/prediction_difference.pck', 'wb'))
+tr_err = test(Ytrain, x, Lam)
 print('\nResults\n===========')
-print('Mean of test array: {}'.format(np.mean(abs(res))))
-print('Std of test array: {}'.format(np.std(abs(res))))
+print("Mean Absolute Error for training = {}".format(tr_err))
+print("Mean Absolute Error for test = {}".format(res))
+#print('Mean of test array: {}'.format(np.mean(abs(res))))
+#print('Std of test array: {}'.format(np.std(abs(res))))
 
     
 

@@ -27,7 +27,7 @@ cur_dir = os.getcwd()
 dataset_dir = cur_dir
 ext = ''
 CITYNAME = 'LasVegas'
-skip = True
+skip = False
 
 if skip:
     variables = pickle.load(open('data/variables.pck', 'rb'))
@@ -88,7 +88,7 @@ else:
     # In[159]:
 
     major_businesses = major_businesses.assign(metro_area=pd.Series(clusters[1]).values)
-
+    major_businesses = major_businesses[major_businesses['review_count'] > 30] #impose 30 review minimum for business inclusion
 
     # In[160]:
 

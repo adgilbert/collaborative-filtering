@@ -38,17 +38,17 @@ def E_step(Lam, psi, Yj, item_idx, k, n, m):
 
 
 def M_step(Ycol, Lam, psi, k, n, m):
-    accum_A = [np.zeros(k,k) for i in range(n)] 
+    accum_A = [np.zeros((k,k)) for i in range(n)] 
     accum_B = np.zeros((n,k)) #sp.csc_matrix((n,k))
     x = np.zeros((k, m))
     psi_p = 0.0
     for j in range(0, m):
+        if (j % 10000 == 0):
+            print('Evaluated user {}'.format(j))
         item_idx = Ycol.indices[Ycol.indptr[j]:Ycol.indptr[j + 1]]  # items user has rated
         assert (item_idx.shape[0] != 0)
         idx_vec = np.zeros(n)
         idx_vec[item_idx] = 1
-        Dj = sp.diags(idx_vec)
-        assert(Dj.shape == (n,n))
         
         Mj, x[:, j] = E_step(Lam, psi, Ycol[:, j], item_idx, k, n, m)
         Aj = (np.outer(x[:, j], x[:, j]) + psi * Mj) / item_idx.shape[0]
@@ -138,7 +138,7 @@ def split_Y(Ycol, proportion):
 
     # Now get test: 
     #have to only get rows that have actually been trained on first of all. 
-    Ytest = Ytest[:, train_col_ind] #do column slicing first for increased efficiency
+    Ytest = Ycol[:, train_col_ind] #do column slicing first for increased efficiency
     Ytest = Ytest[train_row_ind, :]
     # now take the last 20% (which will no longer actually be 20%)
     Ytest = Ytest[n-test_n:, m-test_m:]
