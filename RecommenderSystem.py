@@ -30,7 +30,7 @@ ext = ''
 # dataset_dir = cur_dir + '/head'
 # ext = '_head'
 CITYNAME = 'LasVegas'
-skip = False
+skip = True
 
 if skip:
     variables = pickle.load(open('data/variables.pck', 'rb'))
@@ -279,6 +279,7 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     local_data = local_connections['stars'].tolist()
     local_col = local_connections.user_id.astype('category', categories=local_users).cat.codes
     local_row = local_connections.business_id.astype('category', categories=local_businesses).cat.codes
+
     assert(local_col[local_col<0].shape[0] == 0)
     assert(local_row[local_row<0].shape[0] == 0)
     local_sparse_matrix = csc_matrix((local_data, (local_row, local_col)), 
@@ -300,6 +301,23 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     print(tourist_sparse_matrix.shape)
     if savename is not None:
         pickle.dump(tourist_sparse_matrix, open('data/{}_tourist.pck'.format(savename), 'wb'))
+
+
+    # Verify that the businesses are indeed the same by checking that each business id is correctly tagged with the right row for an example row
+    test_ind = local_row.iloc[1] # 1 could be anything in the range of rows
+    biz_ind = local_row[local_row == test_ind].index
+    test_biz = local_connections.loc[biz_ind]
+    test_biz = set(test_biz['business_id'])
+
+    tour_ind = tourist_row[tourist_row == test_ind].index
+    tour_biz = tourist_connections.loc[tour_ind]
+    tour_biz = tour_biz['business_id']
+
+    matches = [tour_biz.iloc[i] in test_biz for i in range(tour_biz.shape[0])]
+    assert(all(matches))
+
+
+
     return local_sparse_matrix,  tourist_sparse_matrix
 
 
