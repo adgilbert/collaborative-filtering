@@ -73,7 +73,7 @@ def M_step(Ycol, Lam, psi, k, n, m):
     return Lam_p, psi_p, x
 
 
-def train(Ycol, k, iters):
+def train(Ycol, Ytrain, k, iters, Ytest, test_row_ind, test_col_ind, PROPORTION):
     n, m = Ycol.shape
 
     print("n={}\nm={}\nk={}".format(n, m, k))
@@ -86,10 +86,18 @@ def train(Ycol, k, iters):
     lam_diff = np.zeros(iters)
     psi_diff = np.zeros(iters)
     for i in range(iters):
-        new_lam, new_psi, x = M_step(Ycol, Lam, psi, k, n, m)
+        new_lam, new_psi, x = M_step(Ytrain, Lam, psi, k, n, m)
         lam_diff[i], psi_diff[i] = np.linalg.norm(Lam-new_lam), np.linalg.norm(psi-new_psi)
-        print('iter: {} \tlam_diff:  {:.4f}\tpsi_diff:  {:.4f}'.format(i, lam_diff[i], psi_diff[i]))
+        # Test results. For Train only test on the 
+        train_err = test(Ytrain, x, new_lam)
+        # Get the correct rows and columns of Lambda and x
+        x_test, Lam_test = split_others(Ycol, x, new_lam, PROPORTION, test_row_ind, test_col_ind)
+        test_err = test(Ytest, x_test, Lam_test)
+
+        print('iter: {} \tlam_diff:  {:.4f}\tpsi_diff:  {:.4f}\ttrain_err:  {:.4f}\ttest_err:  {:.4f}'
+            .format(i, lam_diff[i], psi_diff[i], train_err, test_err))
         Lam, psi = np.array(new_lam), np.array(new_psi)
+
 
     return lam_diff, psi_diff, x, Lam
 
@@ -102,9 +110,15 @@ def test(Ytr, X, Lam):
     X is (k,m) representing k canonical preferences of m users
     Lam is (n,k) representing factor loading of k canonical preferences for n businesses
     """
-    assert (Ytr.shape[0] == Lam.shape[0])
-    assert (Ytr.shape[1] == X.shape[1])
-    assert (Lam.shape[1] == X.shape[0])
+    try:
+        assert (Ytr.shape[0] == Lam.shape[0])
+        assert (Ytr.shape[1] == X.shape[1])
+        assert (Lam.shape[1] == X.shape[0])
+    except AssertionError:
+        print('Ytr shape = {}'.format(Ytr.shape))
+        print('X shape = {}'.format(X.shape))
+        print('Lam shape = {}'.format(Lam.shape))
+        raise(AssertionError('shape mismatch'))
 
     #find non-zero ratings in training data
     row, col, data = sp.find(Ytr)
@@ -149,7 +163,7 @@ def split_Y(Ycol, proportion):
     Ytest = Ytest[:, test_col_ind]
     print('Ytest after removing empty: {}'.format(Ytest.shape))
 
-    return Ytest, Ytrain, test_row_ind, test_col_ind
+    return Ytest, Ytrain, test_row_ind, test_col_ind, train_row_ind, train_col_ind
 
 
 

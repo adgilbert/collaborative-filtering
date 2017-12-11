@@ -26,6 +26,9 @@ from scipy.sparse import csc_matrix
 cur_dir = os.getcwd()
 dataset_dir = cur_dir
 ext = ''
+# cur_dir = '~/Desktop/dataset'
+# dataset_dir = cur_dir + '/head'
+# ext = '_head'
 CITYNAME = 'LasVegas'
 skip = False
 
@@ -259,7 +262,18 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     local_bizes = businesses[businesses['metro_area'] == city_index]
     local_connections = connections[connections['user_id'].isin(local_users['user_id'])]
     local_connections = local_connections[local_connections['business_id'].isin(local_bizes['business_id'])]
-                                    
+    
+    # For tourist, get new users but same businesses
+    tourist_users = user_res[user_res['group'] != city_index]
+    tourist_bizes = businesses[businesses['metro_area'] == city_index]
+    tourist_connections = connections[connections['user_id'].isin(tourist_users['user_id'])]
+    tourist_connections = tourist_connections[tourist_connections['business_id'].isin(tourist_bizes['business_id'])]
+
+    biz_ids = pd.merge(local_connections[['business_id']], tourist_connections[['business_id']], on=['business_id'], how='inner')
+    local_connections = local_connections[local_connections['business_id'].isin(biz_ids['business_id'])]
+    tourist_connections = tourist_connections[tourist_connections['business_id'].isin(biz_ids['business_id'])]
+
+    # Now set up local array
     local_users = set(local_connections.user_id)
     local_businesses = set(local_connections.business_id)
     local_data = local_connections['stars'].tolist()
@@ -269,16 +283,11 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     assert(local_row[local_row<0].shape[0] == 0)
     local_sparse_matrix = csc_matrix((local_data, (local_row, local_col)), 
                                      shape=(len(local_businesses), len(local_users)))
-    
+    print(local_sparse_matrix.shape)
     if savename is not None:
         pickle.dump(local_sparse_matrix, open('data/{}_local.pck'.format(savename), 'wb'))
     
-    # For tourist, get new users but same businesses
-    tourist_users = user_res[user_res['group'] != city_index]
-    tourist_bizes = businesses[businesses['metro_area'] == city_index]
-    tourist_connections = connections[connections['user_id'].isin(tourist_users['user_id'])]
-    tourist_connections = tourist_connections[tourist_connections['business_id'].isin(tourist_bizes['business_id'])]
-    
+    # Now set up tourist array
     tourist_users = set(tourist_connections.user_id)
     tourist_businesses = set(tourist_connections.business_id)
     tourist_data = tourist_connections['stars'].tolist()
@@ -288,8 +297,6 @@ def get_city_array(city_index, connections, user_res, businesses, savename=None)
     assert(tourist_col[tourist_col<0].shape[0] == 0)
     tourist_sparse_matrix = csc_matrix((tourist_data, (tourist_row, tourist_col)), 
                                        shape=(len(tourist_businesses), len(tourist_users)))
-    
-    print(local_sparse_matrix.shape)
     print(tourist_sparse_matrix.shape)
     if savename is not None:
         pickle.dump(tourist_sparse_matrix, open('data/{}_tourist.pck'.format(savename), 'wb'))

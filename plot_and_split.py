@@ -1,5 +1,6 @@
 from scipy import cluster
 
+
 def eliminate_minor_states(businesses):
     states = set(businesses['state'])
     state_num = dict()
