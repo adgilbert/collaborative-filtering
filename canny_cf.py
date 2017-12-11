@@ -73,8 +73,21 @@ def M_step(Ycol, Lam, psi, k, n, m):
     return Lam_p, psi_p, x
 
 
-def train(Ycol, Ytrain, k, iters, Ytest, test_row_ind, test_col_ind, PROPORTION):
-    n, m = Ycol.shape
+def train(Ytotal, Ytrain, k, iters, Ytest, PROPORTION, test_row_ind, test_col_ind, original_shape):
+    """
+    Code to run the training loop.
+    Ytotal = The total Y array => used for testing code
+    Ytrain = The training Y array (several values are erased from total)
+    k = the number of latent features to use
+    iters = the number of iterations of training to run on the algorithm
+    Ytest = the test portion of the Yarray
+    PROPORTION = the percentage of the total data that is set aside for testing
+    test_row_ind = the rows of the total array that were selected so get the test array
+    test_col_ind = the columns of the total array that were selected to get the test array
+    original_shape = the shape of the training array before appending extra information. This is used in the case of 'combined' data when the 
+        tourist data and local data are combined, but the test set only comes from one. Then 
+    """
+    n, m = Ytotal.shape
 
     print("n={}\nm={}\nk={}".format(n, m, k))
 
@@ -85,21 +98,24 @@ def train(Ycol, Ytrain, k, iters, Ytest, test_row_ind, test_col_ind, PROPORTION)
     print('Starting Iterations\n========================')
     lam_diff = np.zeros(iters)
     psi_diff = np.zeros(iters)
+    train_err = np.zeros(iters)
+    test_err = np.zeros(iters)
     for i in range(iters):
         new_lam, new_psi, x = M_step(Ytrain, Lam, psi, k, n, m)
         lam_diff[i], psi_diff[i] = np.linalg.norm(Lam-new_lam), np.linalg.norm(psi-new_psi)
         # Test results. For Train only test on the 
-        train_err = test(Ytrain, x, new_lam)
+        train_err[i] = test(Ytrain, x, new_lam)
         # Get the correct rows and columns of Lambda and x
-        x_test, Lam_test = split_others(Ycol, x, new_lam, PROPORTION, test_row_ind, test_col_ind)
-        test_err = test(Ytest, x_test, Lam_test)
+        x_test, Lam_test = split_others(Ytotal[:, :original_shape[1]], x, new_lam, PROPORTION, test_row_ind, test_col_ind)
+        test_err[i] = test(Ytest, x_test, Lam_test)
+        # test_err = 0
 
         print('iter: {} \tlam_diff:  {:.4f}\tpsi_diff:  {:.4f}\ttrain_err:  {:.4f}\ttest_err:  {:.4f}'
-            .format(i, lam_diff[i], psi_diff[i], train_err, test_err))
+            .format(i, lam_diff[i], psi_diff[i], train_err[i], test_err[i]))
         Lam, psi = np.array(new_lam), np.array(new_psi)
 
 
-    return lam_diff, psi_diff, x, Lam
+    return lam_diff, psi_diff, train_err, test_err, x, Lam
 
 
 def test(Ytr, X, Lam):
@@ -179,12 +195,12 @@ def split_others(Ycol, x, Lam, proportion, test_row_ind, test_col_ind):
     # x_test = x[:, train_col_ind]
     x_test = x[:, m-test_m:]
     x_test = x_test[:, test_col_ind]
-    print('x_test shape: {}'.format(x_test.shape))
+    # print('x_test shape: {}'.format(x_test.shape))
 
     # Lam_test = Lam[train_row_ind, :]
     Lam_test = Lam[n-test_n:, :]
     Lam_test = Lam_test[test_row_ind, :]
-    print('Lam_test shape: {}'.format(Lam_test.shape))
+    # print('Lam_test shape: {}'.format(Lam_test.shape))
 
     return x_test, Lam_test
 
