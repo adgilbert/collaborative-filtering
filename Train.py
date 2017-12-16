@@ -86,4 +86,3 @@ results = dict(
         test_err=test_err 
 )
 pickle.dump(results, open(SAVENAME, 'wb'))
-

@@ -107,3 +107,8 @@ ENV/
 
 # PyCharm
 .idea/
+
+# Other
+data/*
+plots/*
+

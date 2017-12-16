@@ -23,14 +23,14 @@ from scipy.sparse import csc_matrix
 
 
 # In[155]:
-cur_dir = os.getcwd()
+# cur_dir = os.getcwd()
+# dataset_dir = cur_dir
+# ext = ''
+cur_dir = '~/Desktop/dataset'
 dataset_dir = cur_dir
 ext = ''
-# cur_dir = '~/Desktop/dataset'
-# dataset_dir = cur_dir + '/head'
-# ext = '_head'
 CITYNAME = 'LasVegas'
-skip = True
+skip = False
 
 if skip:
     variables = pickle.load(open('data/variables.pck', 'rb'))
@@ -91,7 +91,9 @@ else:
     # In[159]:
 
     major_businesses = major_businesses.assign(metro_area=pd.Series(clusters[1]).values)
+    print('major_businesses shape: {}'.format(major_businesses.shape))
     major_businesses = major_businesses[major_businesses['review_count'] > 30] #impose 30 review minimum for business inclusion
+    print('major_businesses shape: {}'.format(major_businesses.shape))
 
     # In[160]:
 
@@ -107,10 +109,10 @@ else:
     join_date = pd.to_datetime(users['yelping_since']).dt.date
     now_date = datetime.date(2017, 12, 1)
     users['weeks_on_yelp'] = (now_date - join_date).dt.days / 7
-    print(users.shape)
+    print('user shape: {}'.format(users.shape))
     # Eliminate users with less than 20 reviews
     users = users[users.review_count >= 20]
-    print(users.shape)
+    print('user shape after cutting: {}'.format(users.shape))
 
 
     # In[162]:
