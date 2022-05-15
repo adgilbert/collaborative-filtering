@@ -1,8 +1,10 @@
-# cs229_yelp
+# Sparse Factor Analysis Collaborative Filtering
 
 This is the directory for the CS229 project by Andy Gilbert and Andrew Hilger. 
 
 # Summary
+
+This project implements a sparse factor analysis collaborative filtering algorithm for building a recommendation system. 
 
 In principle only two files need to be run. RecommenderSystem.py performs business and user clustering and saves the tourist and local dataset for a given metro area. Train.py performs the training using the sparse factor analysis and also tests at each iteration and exports testing and training results for analysis. 
 
@@ -21,8 +23,6 @@ For other files uses see the description below.
  - Train.py: Used to perform the Training on the tourist and local datasets using sparse factor analysis
 
  ## Jupyter Notebooks:
- - Do Things.ipynb: Old notebook used for testing purposes when doing feature extraction
- - GetFeatures.ipynb: Old notebook used for testing purposes when doing clustering
  - PlotResults.ipynb: Notebook used to visualize the results of training.
  - RecommenderSystem.ipynb: Notebook used to perform data cleaning, feature analysis and extraction, and clustering. Ultimately, exports tourist and local split datasaets
 
